@@ -65,19 +65,18 @@ def load_images(folder):
   return images
 
 images = np.concatenate(load_images("dataset_images"))
-pass
 
 # we know we only want components for 95% of variance, so we rewrite the last two lines
 pca = PCA() # if we know the number of components we write that, otherwise
                           #   we write the variance we desire (e.g. 0.95)
 scores = pca.fit_transform(images)
-reconstructed = pca.inverse_transform(scores)
+# reconstructed = pca.inverse_transform(scores)
 principal_components = pca.components_
 
 components_to_analyse = 7
 learnt_components = list(principal_components[:components_to_analyse, :])
 pass
-for i in range(components_to_analyse):
+for i in range(len(learnt_components)):
     learnt_components[i] = learnt_components[i].reshape(10,10)
 
 figure = plt.gcf()
