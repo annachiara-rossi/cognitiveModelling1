@@ -13,6 +13,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 import os
 import matplotlib.image as mpimg
+from numpy.polynomial.polynomial import polyfit
 
 filename = 'data.csv'
 df = pd.read_csv(filename, sep=';')  # gives a dataframe
@@ -24,7 +25,7 @@ df = df.reset_index(drop=True)
 
 ### standardize for each person
 for elem_id in df['id'].unique():
-    df.loc[df['id'] == elem_id, 'time'] = stats.zscore(df.loc[df['id'] == elem_id, 'time'], ddof=1)
+  df.loc[df['id'] == elem_id, 'time'] = stats.zscore(df.loc[df['id'] == elem_id, 'time'], ddof=1)
 
 ### convert to a continuous index
 ## put Non-smiling in the range [-1,0), and the most negative value is the fastest
@@ -67,23 +68,46 @@ def load_images(folder):
 images = np.concatenate(load_images("dataset_images"))
 
 # we know we only want components for 95% of variance, so we rewrite the last two lines
-pca = PCA() # if we know the number of components we write that, otherwise
+pca = PCA(n_components=0.9) # if we know the number of components we write that, otherwise
                           #   we write the variance we desire (e.g. 0.95)
 scores = pca.fit_transform(images)
-# reconstructed = pca.inverse_transform(scores)
+reconstructed = list(pca.inverse_transform(scores))
 principal_components = pca.components_
 
 components_to_analyse = 7
 learnt_components = list(principal_components[:components_to_analyse, :])
-pass
 for i in range(len(learnt_components)):
-    learnt_components[i] = learnt_components[i].reshape(10,10)
+  learnt_components[i] = learnt_components[i].reshape(10,10)
 
 figure = plt.gcf()
-figure.set_size_inches(0.04444, 0.04444)
-
+# figure.set_size_inches(0.04444, 0.04444)
 for i in range(components_to_analyse):
-    plt.savefig("component_"+str(i)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+  plt.imshow(learnt_components[i])
+  plt.savefig("component_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+
+rows_per_image = len(reconstructed)//len(df['image_number'].unique())
+for i in range(len(df['image_number'].unique())):
+  reconstructed[i] = reconstructed[i:(i+rows_per_image)]
+  reconstructed[i+1:len(reconstructed)] = reconstructed[(i+rows_per_image):len(reconstructed)]
+pass
+for i in range(len(reconstructed)):
+  reconstructed[i] = np.array(reconstructed[i]).reshape(50, 50)
+for i in range(len(reconstructed)):
+  plt.imshow(reconstructed[i])
+  plt.savefig("reconstructed_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+pass
+
+## PROVA REGRESSIONE
+# x = np.array([1,2,3,4,5,6,6,6,7,7,8])
+# y = np.array([1,2,4,8,16,32,34,30,61,65,120])
+#
+# # Fit with polyfit
+# b, m = polyfit(x, y, 1)
+#
+# plt.plot(x, y, '.')
+# plt.plot(x, b + m * x, '-')
+# plt.show()
+
 
 # img_compressed = list(pca.inverse_transform(scores))
 #
