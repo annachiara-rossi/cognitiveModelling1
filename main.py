@@ -18,9 +18,28 @@ filename = 'data.csv'
 df = pd.read_csv(filename, sep=';')  # gives a dataframe
 # raw_data = df.values            # convert to array
 
+# create a set contianing the number of the image which is an outlier for at least one test person
+outlier_mask = df['time'] >= 3.0
+
+sum = 0
+out_list = []
+for i in range(len(outlier_mask)):
+    if outlier_mask[i] == True:
+        out_list =  out_list + [df.loc[i,'image_number']]          # rows in which we have outliers
+        sum = sum + 1
+
+out_list = set(out_list)        # to get only unique values
+
 ### first remove the most extreme outliers
 df = df[df['time'] < 3.0]
 df = df.reset_index(drop=True)
+
+# drop the outliers, NOT sure we need to do this
+#for i in range(0,df.shape[0]):      # for each element in the new dataframe
+    # drop the row with that image_number
+#    if df.loc[i,'image_number'] in out_list:
+        # drop this row
+#        df.drop(labels = i, axis = 0, inplace = True)
 
 ### standardize for each person
 for elem_id in df['id'].unique():
@@ -65,7 +84,7 @@ def load_images(folder):
   return images
 
 images = np.concatenate(load_images("dataset_images"))
-pass
+
 
 # we know we only want components for 95% of variance, so we rewrite the last two lines
 pca = PCA() # if we know the number of components we write that, otherwise
@@ -74,17 +93,30 @@ scores = pca.fit_transform(images)
 reconstructed = pca.inverse_transform(scores)
 principal_components = pca.components_
 
-components_to_analyse = 7
+# cumulative variance of the components --> 10 give 90% of the variability
+var = np.cumsum(pca.explained_variance_ratio_)
+
+threshold = 0.95
+
+plt.figure()
+plt.bar(range(0,20), var[:20])
+plt.axhline(threshold,color = 'r')
+plt.show()
+
+components_to_analyse = 10
 learnt_components = list(principal_components[:components_to_analyse, :])
-pass
-for i in range(components_to_analyse):
-    learnt_components[i] = learnt_components[i].reshape(10,10)
-
-figure = plt.gcf()
-figure.set_size_inches(0.04444, 0.04444)
 
 for i in range(components_to_analyse):
-    plt.savefig("component_"+str(i)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+    learnt_components[i] = learnt_components[i].reshape(10, 10)
+
+from PIL import Image
+
+for i in range(components_to_analyse):
+    img_pc = Image.fromarray(learnt_components[i]*255)
+    img_pc.show()
+
+# to save the figure
+#plt.savefig("component_" + str(i) + ".png", bbox_inches='tight', pad_inches=0, dpi=226)
 
 # img_compressed = list(pca.inverse_transform(scores))
 #
