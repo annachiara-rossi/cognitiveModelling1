@@ -13,7 +13,9 @@ import numpy as np
 from sklearn.decomposition import PCA
 import os
 import matplotlib.image as mpimg
-from numpy.polynomial.polynomial import polyfit
+# from numpy.polynomial.polynomial import polyfit
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
 
 filename = 'data.csv'
 df = pd.read_csv(filename, sep=';')  # gives a dataframe
@@ -74,28 +76,86 @@ scores = pca.fit_transform(images)
 reconstructed = list(pca.inverse_transform(scores))
 principal_components = pca.components_
 
-components_to_analyse = 7
-learnt_components = list(principal_components[:components_to_analyse, :])
-for i in range(len(learnt_components)):
-  learnt_components[i] = learnt_components[i].reshape(10,10)
+###### PER VELOCIZZARE, DA UNCOMMENT DOPO (QUESTO FA SOLO RICOSTRUZIONE DELLE IMMAGINI PER SALVARLE
+# components_to_analyse = 7
+# learnt_components = list(principal_components[:components_to_analyse, :])
+# for i in range(len(learnt_components)):
+#   learnt_components[i] = learnt_components[i].reshape(10,10)
+#
+# figure = plt.gcf()
+# # figure.set_size_inches(0.04444, 0.04444)
+# for i in range(components_to_analyse):
+#   plt.imshow(learnt_components[i])
+#   plt.savefig("component_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+#
+# rows_per_image = len(reconstructed)//len(df['image_number'].unique())
+# for i in range(len(df['image_number'].unique())):
+#   reconstructed[i] = reconstructed[i:(i+rows_per_image)]
+#   reconstructed[i+1:len(reconstructed)] = reconstructed[(i+rows_per_image):len(reconstructed)]
+#
+# for i in range(len(reconstructed)):
+#   reconstructed[i] = np.array(reconstructed[i]).reshape(50, 50)
+# for i in range(len(reconstructed)):
+#   plt.imshow(reconstructed[i])
+#   plt.savefig("reconstructed_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+###### PER VELOCIZZARE, DA UNCOMMENT DOPO FINO A QUI
 
-figure = plt.gcf()
-# figure.set_size_inches(0.04444, 0.04444)
-for i in range(components_to_analyse):
-  plt.imshow(learnt_components[i])
-  plt.savefig("component_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+df = df.sort_values(by=['image_number', 'id'])
+df = df.reset_index(drop=True)
+df_image_numbers = df.image_number
+df_times = df.time
+pass
 
-rows_per_image = len(reconstructed)//len(df['image_number'].unique())
-for i in range(len(df['image_number'].unique())):
+rows_per_image = len(reconstructed)//len(df_image_numbers.unique())
+for i in range(len(df_image_numbers.unique())):
   reconstructed[i] = reconstructed[i:(i+rows_per_image)]
   reconstructed[i+1:len(reconstructed)] = reconstructed[(i+rows_per_image):len(reconstructed)]
-pass
 for i in range(len(reconstructed)):
-  reconstructed[i] = np.array(reconstructed[i]).reshape(50, 50)
-for i in range(len(reconstructed)):
-  plt.imshow(reconstructed[i])
-  plt.savefig("reconstructed_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+  reconstructed[i] = np.array(reconstructed[i]).flatten()
+
+images_for_regression = []
+# for i in range(len(reconstructed)):
+#   for j in range(len(df_image_numbers == (i+1))):
+#     images_for_regression.append(reconstructed[i+j])
+
+for i in range(len(df_image_numbers.unique())):
+  for _ in range(len(df_image_numbers[df_image_numbers == (i+1)])):
+    images_for_regression.append(reconstructed[i])
 pass
+# b, m = polyfit(images_for_regression, df_times, 1)
+# plt.plot(images_for_regression, df_times, '.')
+# plt.plot(images_for_regression, b + m * images_for_regression, '-')
+# plt.show()
+
+# sckit-learn implementation
+
+# Model initialization
+regression_model = LinearRegression()
+# Fit the data(train the model)
+regression_model.fit(images_for_regression, df_times)
+# Predict
+df_times_predicted = regression_model.predict(images_for_regression)
+
+# model evaluation
+rmse = mean_squared_error(df_times, df_times_predicted)
+r2 = r2_score(df_times, df_times_predicted)
+
+# printing values
+print('Slope:' ,regression_model.coef_)
+print('Intercept:', regression_model.intercept_)
+print('Root mean squared error: ', rmse)
+print('R2 score: ', r2)
+
+# plotting values
+
+# # data points
+plt.scatter(range(len(images_for_regression)), df_times)
+plt.xlabel('x')
+plt.ylabel('y')
+
+# predicted values
+plt.plot(range(len(images_for_regression)), df_times_predicted, color='r')
+plt.show()
 
 ## PROVA REGRESSIONE
 # x = np.array([1,2,3,4,5,6,6,6,7,7,8])
