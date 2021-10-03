@@ -22,14 +22,22 @@ df = pd.read_csv(filename, sep=';')  # gives a dataframe
 # raw_data = df.values            # convert to array
 
 ### first remove the most extreme outliers
-df = df[df['time'] < 3.0]
+df = df[df['time'] < 4.0]
 df = df.reset_index(drop=True)
 
 ### standardize for each person
 for elem_id in df['id'].unique():
   df.loc[df['id'] == elem_id, 'time'] = stats.zscore(df.loc[df['id'] == elem_id, 'time'], ddof=1)
 
-### convert to a continuous index
+# remove outliers after the standardization
+std = np.std(df['time'],ddof= 1)        # almost 1, since we have standardized, but there's always an error
+
+df = df[df['time'] < std*2]
+df = df[df['time'] > -2*std]
+df = df.reset_index(drop=True)
+
+# %% convert to a continuous index
+
 ## put Non-smiling in the range [-1,0), and the most negative value is the fastest
 mask_not_smiling = df.label == 'Not smiling'
 df.loc[mask_not_smiling, 'time'] = MinMaxScaler(feature_range=(-1, 0)).fit_transform(df[mask_not_smiling]['time'].values.reshape(-1, 1))
@@ -38,6 +46,9 @@ df.loc[mask_not_smiling, 'time'] = MinMaxScaler(feature_range=(-1, 0)).fit_trans
 mask_smiling = df.label == 'Smiling'
 df.loc[mask_smiling, 'time'] = - df.loc[mask_smiling, 'time']
 df.loc[mask_smiling, 'time'] = MinMaxScaler(feature_range=(0, 1)).fit_transform(df[mask_smiling]['time'].values.reshape(-1, 1))
+
+
+# %% PCA ON THE IMAGES
 
 plt.gray()
 plt.axis('off')
@@ -75,6 +86,10 @@ pca = PCA(n_components=0.9) # if we know the number of components we write that,
 scores = pca.fit_transform(images)
 reconstructed = list(pca.inverse_transform(scores))
 principal_components = pca.components_
+
+# variance explained
+var = np.cumsum(pca.explained_variance_ratio_)
+
 
 ###### PER VELOCIZZARE, DA UNCOMMENT DOPO (QUESTO FA SOLO RICOSTRUZIONE DELLE IMMAGINI PER SALVARLE
 # components_to_analyse = 7
@@ -146,16 +161,59 @@ print('Intercept:', regression_model.intercept_)
 print('Root mean squared error: ', rmse)
 print('R2 score: ', r2)
 
-# plotting values
+coeff = regression_model.coef_
+beta0 = regression_model.intercept_
 
-# # data points
-plt.scatter(range(len(images_for_regression)), df_times)
-plt.xlabel('x')
-plt.ylabel('y')
+# readjust the vector of the predictions so that it's just one value for the same image
+
+num = []
+for i in range(len(df_image_numbers.unique())):  # for each image
+  # take the number of times the image is repeated
+  num += [len(df_image_numbers[df_image_numbers == (i + 1)])]
+
+new_times = []
+n = 0
+# now take the first n elements of the vector df_times_predicted and substitute with one
+for i in range(len(df_image_numbers.unique())):
+  new_times += [df_times_predicted[n]]
+  n = n + num[i]
+
+new_times = np.array(new_times)
+plt.scatter(range(len(reconstructed)), new_times)
+
+
+# %%
+
+nn2 = np.linalg.norm(coeff)**2
+
+idx = 0.8       # a person which is pretty clear is smiling
+
+alpha = (idx - beta0)/nn2
+new_img = alpha*coeff          # these are the pixels of the new image
+
+
+# reconstruct the image
+# new_img = list(new_img.reshape(100,-1).T)     # get again the shape (25*100)
+
+# for i in range(len(new_img)):
+#    new_img[i] = new_img[i].reshape(10, 10)
+# new_img = np.array(new_img).reshape(50, -1)
+
+# Image.fromarray(new_img*255.0).show()
+
+new_img = new_img.reshape(50,50)
+plt.imshow(new_img)
+
+
+
+
+
+
+
 
 # predicted values
-plt.plot(range(len(images_for_regression)), df_times_predicted, color='r')
-plt.show()
+#plt.plot(range(len(images_for_regression)), df_times_predicted, color='r')
+#plt.show()
 
 ## PROVA REGRESSIONE
 # x = np.array([1,2,3,4,5,6,6,6,7,7,8])
