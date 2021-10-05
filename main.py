@@ -126,17 +126,32 @@ for i in range(len(df_image_numbers.unique())):
   reconstructed[i] = reconstructed[i:(i+rows_per_image)]
   reconstructed[i+1:len(reconstructed)] = reconstructed[(i+rows_per_image):len(reconstructed)]
 for i in range(len(reconstructed)):
-  reconstructed[i] = np.array(reconstructed[i]).flatten()
+  reconstructed[i] = np.array(reconstructed[i]).reshape(-1, 10, 10).reshape(-1)
+
+scores_x = list(scores)
+rows_per_image = len(scores_x)//len(df_image_numbers.unique())
+for i in range(len(df_image_numbers.unique())):
+  scores_x[i] = scores_x[i:(i+rows_per_image)]
+  scores_x[i+1:len(scores_x)] = scores_x[(i+rows_per_image):len(scores_x)]
+for i in range(len(scores_x)):
+  scores_x[i] = np.concatenate(scores_x[i])
 
 images_for_regression = []
 # for i in range(len(reconstructed)):
 #   for j in range(len(df_image_numbers == (i+1))):
 #     images_for_regression.append(reconstructed[i+j])
-
 for i in range(len(df_image_numbers.unique())):
   for _ in range(len(df_image_numbers[df_image_numbers == (i+1)])):
     images_for_regression.append(reconstructed[i])
-pass
+
+images_for_regression = []
+# for i in range(len(reconstructed)):
+#   for j in range(len(df_image_numbers == (i+1))):
+#     images_for_regression.append(reconstructed[i+j])
+for i in range(len(df_image_numbers.unique())):
+  for _ in range(len(df_image_numbers[df_image_numbers == (i+1)])):
+    images_for_regression.append(scores_x[i])
+
 # b, m = polyfit(images_for_regression, df_times, 1)
 # plt.plot(images_for_regression, df_times, '.')
 # plt.plot(images_for_regression, b + m * images_for_regression, '-')
@@ -180,18 +195,21 @@ for i in range(len(df_image_numbers.unique())):
 
 new_times = np.array(new_times)
 plt.scatter(range(len(reconstructed)), new_times)
-
+plt.plot()
+plt.show()
 
 # %%
 
 nn2 = np.linalg.norm(coeff)**2
 
-idx = 0.8       # a person which is pretty clear is smiling
+idx = 0.0       # a person which is pretty clear is smiling
 
 alpha = (idx - beta0)/nn2
 new_img = alpha*coeff          # these are the pixels of the new image
 
+new_img = new_img.reshape(25, -1)
 
+new_img_reconstructed = pca.inverse_transform(new_img)
 # reconstruct the image
 # new_img = list(new_img.reshape(100,-1).T)     # get again the shape (25*100)
 
@@ -201,9 +219,9 @@ new_img = alpha*coeff          # these are the pixels of the new image
 
 # Image.fromarray(new_img*255.0).show()
 
-new_img = new_img.reshape(50,50)
-plt.imshow(new_img)
-
+new_img_reconstructed = new_img_reconstructed.reshape(-1, 10, 10).reshape(50,-1)
+plt.imshow(new_img_reconstructed)
+plt.savefig('prova.png')
 
 
 
