@@ -13,13 +13,11 @@ import numpy as np
 from sklearn.decomposition import PCA
 import os
 import matplotlib.image as mpimg
-# from numpy.polynomial.polynomial import polyfit
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 
 filename = 'data.csv'
 df = pd.read_csv(filename, sep=';')  # gives a dataframe
-# raw_data = df.values            # convert to array
 
 ### first remove the most extreme outliers
 df = df[df['time'] < 4.0]
@@ -53,20 +51,6 @@ df.loc[mask_smiling, 'time'] = MinMaxScaler(feature_range=(0, 1)).fit_transform(
 plt.gray()
 plt.axis('off')
 
-# def load_images(folder, outliers):
-#   images = []
-#   files_to_load = os.listdir(folder)
-#   for outlier in outliers:
-#     files_to_load = files_to_load.remove(outlier)
-#   for filename in files_to_load:
-#     img = mpimg.imread(os.path.join(folder, filename))
-#     if img is not None:
-#       img = list(img.reshape(-1, 10, 10))
-#       for i in range(len(img)):
-#         img[i] = img[i].reshape(-1)
-#       images.append(np.array(img))
-#   return images
-
 def load_images(folder):
   images = []
   for filename in os.listdir(folder):
@@ -81,7 +65,7 @@ def load_images(folder):
 images = np.concatenate(load_images("dataset_images"))
 
 # we know we only want components for 95% of variance, so we rewrite the last two lines
-pca = PCA(n_components=0.9) # if we know the number of components we write that, otherwise
+pca = PCA(n_components=0.95) # if we know the number of components we write that, otherwise
                           #   we write the variance we desire (e.g. 0.95)
 scores = pca.fit_transform(images)
 reconstructed = list(pca.inverse_transform(scores))
@@ -119,14 +103,6 @@ df = df.sort_values(by=['image_number', 'id'])
 df = df.reset_index(drop=True)
 df_image_numbers = df.image_number
 df_times = df.time
-pass
-
-rows_per_image = len(reconstructed)//len(df_image_numbers.unique())
-for i in range(len(df_image_numbers.unique())):
-  reconstructed[i] = reconstructed[i:(i+rows_per_image)]
-  reconstructed[i+1:len(reconstructed)] = reconstructed[(i+rows_per_image):len(reconstructed)]
-for i in range(len(reconstructed)):
-  reconstructed[i] = np.array(reconstructed[i]).reshape(-1, 10, 10).reshape(-1)
 
 scores_x = list(scores)
 rows_per_image = len(scores_x)//len(df_image_numbers.unique())
@@ -137,27 +113,9 @@ for i in range(len(scores_x)):
   scores_x[i] = np.concatenate(scores_x[i])
 
 images_for_regression = []
-# for i in range(len(reconstructed)):
-#   for j in range(len(df_image_numbers == (i+1))):
-#     images_for_regression.append(reconstructed[i+j])
-for i in range(len(df_image_numbers.unique())):
-  for _ in range(len(df_image_numbers[df_image_numbers == (i+1)])):
-    images_for_regression.append(reconstructed[i])
-
-images_for_regression = []
-# for i in range(len(reconstructed)):
-#   for j in range(len(df_image_numbers == (i+1))):
-#     images_for_regression.append(reconstructed[i+j])
 for i in range(len(df_image_numbers.unique())):
   for _ in range(len(df_image_numbers[df_image_numbers == (i+1)])):
     images_for_regression.append(scores_x[i])
-
-# b, m = polyfit(images_for_regression, df_times, 1)
-# plt.plot(images_for_regression, df_times, '.')
-# plt.plot(images_for_regression, b + m * images_for_regression, '-')
-# plt.show()
-
-# sckit-learn implementation
 
 # Model initialization
 regression_model = LinearRegression()
@@ -179,8 +137,6 @@ print('R2 score: ', r2)
 coeff = regression_model.coef_
 beta0 = regression_model.intercept_
 
-# readjust the vector of the predictions so that it's just one value for the same image
-
 num = []
 for i in range(len(df_image_numbers.unique())):  # for each image
   # take the number of times the image is repeated
@@ -194,7 +150,7 @@ for i in range(len(df_image_numbers.unique())):
   n = n + num[i]
 
 new_times = np.array(new_times)
-plt.scatter(range(len(reconstructed)), new_times)
+plt.scatter(range(len(scores_x)), new_times)
 plt.plot()
 plt.show()
 
@@ -202,7 +158,7 @@ plt.show()
 
 nn2 = np.linalg.norm(coeff)**2
 
-idx = 0.0       # a person which is pretty clear is smiling
+idx = -1.0       # a person which is pretty clear is smiling
 
 alpha = (idx - beta0)/nn2
 new_img = alpha*coeff          # these are the pixels of the new image
@@ -210,49 +166,6 @@ new_img = alpha*coeff          # these are the pixels of the new image
 new_img = new_img.reshape(25, -1)
 
 new_img_reconstructed = pca.inverse_transform(new_img)
-# reconstruct the image
-# new_img = list(new_img.reshape(100,-1).T)     # get again the shape (25*100)
-
-# for i in range(len(new_img)):
-#    new_img[i] = new_img[i].reshape(10, 10)
-# new_img = np.array(new_img).reshape(50, -1)
-
-# Image.fromarray(new_img*255.0).show()
-
 new_img_reconstructed = new_img_reconstructed.reshape(-1, 10, 10).reshape(50,-1)
 plt.imshow(new_img_reconstructed)
 plt.savefig('prova.png')
-
-
-
-
-
-
-
-# predicted values
-#plt.plot(range(len(images_for_regression)), df_times_predicted, color='r')
-#plt.show()
-
-## PROVA REGRESSIONE
-# x = np.array([1,2,3,4,5,6,6,6,7,7,8])
-# y = np.array([1,2,4,8,16,32,34,30,61,65,120])
-#
-# # Fit with polyfit
-# b, m = polyfit(x, y, 1)
-#
-# plt.plot(x, y, '.')
-# plt.plot(x, b + m * x, '-')
-# plt.show()
-
-
-# img_compressed = list(pca.inverse_transform(scores))
-#
-# for i in range(len(img_compressed)):
-#   img_compressed[i] = img_compressed[i].reshape(10, 10)
-#
-# img_compressed = np.array(img_compressed).reshape(1140, -1)
-#
-# figure = plt.gcf()
-# figure.set_size_inches(3.54, 5.04) # per mona lisa ok
-# # plt.imshow(img_compressed)
-# # plt.savefig('new_img_6.png', bbox_inches='tight', pad_inches=0, dpi=226)
