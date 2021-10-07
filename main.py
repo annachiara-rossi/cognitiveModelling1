@@ -49,25 +49,29 @@ df.loc[mask_smiling, 'time'] = MinMaxScaler(feature_range=(0, 1)).fit_transform(
 # %% PCA ON THE IMAGES
 
 plt.gray()
-plt.axis('off')
+# plt.axis('off')
 
 def load_images(folder):
   images = []
-  for filename in os.listdir(folder):
-    img = mpimg.imread(os.path.join(folder, filename))
-    if img is not None:
-      img = list(img.reshape(-1, 10, 10))
-      for i in range(len(img)):
-        img[i] = img[i].reshape(-1)
-      images.append(np.array(img))
+  ### TODO RIORDINARE?
+  for filename in sorted(os.listdir(folder)):
+    try:
+      img = mpimg.imread(os.path.join(folder, filename))
+      if img is not None:
+        images.append(img.reshape(-1))
+    except:
+      continue
   return images
 
-images = np.concatenate(load_images("dataset_images"))
+images = np.stack(load_images("dataset_images"))
 
 # we know we only want components for 95% of variance, so we rewrite the last two lines
-pca = PCA(n_components=0.95) # if we know the number of components we write that, otherwise
+pca = PCA(n_components=0.9) # if we know the number of components we write that, otherwise
                           #   we write the variance we desire (e.g. 0.95)
 scores = pca.fit_transform(images)
+for i in range(len(pca.components_)):
+  scores[:, i] = scores[:, i] + pca.mean_[i]
+
 reconstructed = list(pca.inverse_transform(scores))
 principal_components = pca.components_
 
@@ -76,10 +80,10 @@ var = np.cumsum(pca.explained_variance_ratio_)
 
 
 ###### PER VELOCIZZARE, DA UNCOMMENT DOPO (QUESTO FA SOLO RICOSTRUZIONE DELLE IMMAGINI PER SALVARLE
-# components_to_analyse = 7
+# components_to_analyse = len(principal_components)
 # learnt_components = list(principal_components[:components_to_analyse, :])
 # for i in range(len(learnt_components)):
-#   learnt_components[i] = learnt_components[i].reshape(10,10)
+#   learnt_components[i] = (learnt_components[i] + pca.mean_).reshape(50,-1)  #add mean
 #
 # figure = plt.gcf()
 # # figure.set_size_inches(0.04444, 0.04444)
@@ -158,14 +162,15 @@ plt.show()
 
 nn2 = np.linalg.norm(coeff)**2
 
-idx = -1.0       # a person which is pretty clear is smiling
+idx = +1.5       # a person which is pretty clear is smiling
 
 alpha = (idx - beta0)/nn2
+
 new_img = alpha*coeff          # these are the pixels of the new image
 
-new_img = new_img.reshape(25, -1)
+# new_img = new_img.reshape(25, -1) NO
 
-new_img_reconstructed = pca.inverse_transform(new_img)
-new_img_reconstructed = new_img_reconstructed.reshape(-1, 10, 10).reshape(50,-1)
+new_img_reconstructed = pca.inverse_transform(new_img.T)
+new_img_reconstructed = new_img_reconstructed.reshape(50,-1)
 plt.imshow(new_img_reconstructed)
-plt.savefig('prova.png')
+plt.savefig('smiling.png')
