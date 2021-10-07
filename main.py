@@ -49,11 +49,9 @@ df.loc[mask_smiling, 'time'] = MinMaxScaler(feature_range=(0, 1)).fit_transform(
 # %% PCA ON THE IMAGES
 
 plt.gray()
-# plt.axis('off')
 
 def load_images(folder):
   images = []
-  ### TODO RIORDINARE?
   for filename in sorted(os.listdir(folder)):
     try:
       img = mpimg.imread(os.path.join(folder, filename))
@@ -65,21 +63,18 @@ def load_images(folder):
 
 images = np.stack(load_images("dataset_images"))
 
-# we know we only want components for 95% of variance, so we rewrite the last two lines
-pca = PCA(n_components=0.9) # if we know the number of components we write that, otherwise
-                          #   we write the variance we desire (e.g. 0.95)
+# we know we only want components for _% of variance, so we rewrite the last two lines
+pca = PCA(n_components=0.90) # if we know the number of components we write that, otherwise
+                            #   we write the variance we desire (e.g. 0.95)
 scores = pca.fit_transform(images)
-for i in range(len(pca.components_)):
-  scores[:, i] = scores[:, i] + pca.mean_[i]
-
-reconstructed = list(pca.inverse_transform(scores))
-principal_components = pca.components_
+# for i in range(len(pca.components_)):
+#   scores[:, i] = scores[:, i] + pca.mean_[i]
 
 # variance explained
 var = np.cumsum(pca.explained_variance_ratio_)
 
-
 ###### PER VELOCIZZARE, DA UNCOMMENT DOPO (QUESTO FA SOLO RICOSTRUZIONE DELLE IMMAGINI PER SALVARLE
+# principal_components = pca.components_
 # components_to_analyse = len(principal_components)
 # learnt_components = list(principal_components[:components_to_analyse, :])
 # for i in range(len(learnt_components)):
@@ -90,6 +85,8 @@ var = np.cumsum(pca.explained_variance_ratio_)
 # for i in range(components_to_analyse):
 #   plt.imshow(learnt_components[i])
 #   plt.savefig("component_"+str(i+1)+".png", bbox_inches='tight', pad_inches=0, dpi=226)
+#
+# reconstructed = list(pca.inverse_transform(scores))
 #
 # rows_per_image = len(reconstructed)//len(df['image_number'].unique())
 # for i in range(len(df['image_number'].unique())):
@@ -105,16 +102,19 @@ var = np.cumsum(pca.explained_variance_ratio_)
 
 df = df.sort_values(by=['image_number', 'id'])
 df = df.reset_index(drop=True)
+
 df_image_numbers = df.image_number
 df_times = df.time
 
-scores_x = list(scores)
-rows_per_image = len(scores_x)//len(df_image_numbers.unique())
-for i in range(len(df_image_numbers.unique())):
-  scores_x[i] = scores_x[i:(i+rows_per_image)]
-  scores_x[i+1:len(scores_x)] = scores_x[(i+rows_per_image):len(scores_x)]
-for i in range(len(scores_x)):
-  scores_x[i] = np.concatenate(scores_x[i])
+### we ridivide the scores in ech image
+# scores_x = list(scores)
+# rows_per_image = len(scores_x)//len(df_image_numbers.unique())
+# for i in range(len(df_image_numbers.unique())):
+#   scores_x[i] = scores_x[i:(i+rows_per_image)]
+#   scores_x[i+1:len(scores_x)] = scores_x[(i+rows_per_image):len(scores_x)]
+# for i in range(len(scores_x)):
+#   scores_x[i] = np.concatenate(scores_x[i])
+### not needed anymore
 
 images_for_regression = []
 for i in range(len(df_image_numbers.unique())):
@@ -168,9 +168,7 @@ alpha = (idx - beta0)/nn2
 
 new_img = alpha*coeff          # these are the pixels of the new image
 
-# new_img = new_img.reshape(25, -1) NO
-
 new_img_reconstructed = pca.inverse_transform(new_img.T)
 new_img_reconstructed = new_img_reconstructed.reshape(50,-1)
 plt.imshow(new_img_reconstructed)
-plt.savefig('smiling.png')
+plt.savefig('smiling_2.png')
